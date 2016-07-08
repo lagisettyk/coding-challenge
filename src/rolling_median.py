@@ -18,15 +18,25 @@ def median(l):
     else:
         return "{0:.2f}".format((sortedLst[index] + sortedLst[index + 1])/2.0)
 
-def invalidateEdges(activeRecords, max_ts):
+def invalidateEdges(g, activeRecords, max_ts):
     '''
-    Utility method for identifying invalid Vertices in the graph which are
+    Utility method for identifying invalid edges in the graph which are
     expired.
     '''
     edgesToRemove = \
       [(payment[0],payment[1]) for payment in activeRecords \
                     if payment[2] < (max_ts - timedelta(seconds=59))]
-    return edgesToRemove
+
+    ### Remove invalid edges from graph and update list of
+    ### active records...
+    if len(edgesToRemove) >= 1:
+        g.removeEdges(edgesToRemove)
+        #### Update activeRecord list by removing the edges...
+        activeRecords = \
+           [record for record in activeRecords \
+              if (record[0],record[1]) not in edgesToRemove]
+
+    return activeRecords
 
 def writeOutput(data, f):
     '''
@@ -35,7 +45,7 @@ def writeOutput(data, f):
     f.write(str(data) + "\n")
 
 
-def process(inputFile, outputFile):
+def processPayments(inputFile, outputFile):
     '''
     Method for processing payment records with moving window of 1 minute.
     simulates real time straming by reading records one by one using python
@@ -44,7 +54,7 @@ def process(inputFile, outputFile):
     ### Initialize Graph
     g = Graph()
 
-    ### Initialize activeNodes at current time
+    ### Initialize activerecords list at any given time
     activeRecords = []
 
     ### Initialize max_ts older date..
@@ -66,14 +76,9 @@ def process(inputFile, outputFile):
                     activeRecords.append((payment['actor'],payment['target'],ts))
 
                     ### Remove edges based on expiry of 1 minute windows
-                    edgesToRemove = invalidateEdges(activeRecords, max_ts)
-                    if len(edgesToRemove) >= 1:
-                        g.removeEdges(edgesToRemove)
-                        #### Update activeRecord list by removing the edges...
-                        activeRecords = \
-                           [record for record in activeRecords \
-                              if (record[0],record[1]) not in edgesToRemove]
-                    ### Update latest paymenent
+                    activeRecords = invalidateEdges(g, activeRecords, max_ts)
+
+                    ### Update latest payment record to graph
                     g.addVertex(payment['actor'])
                     g.addEdge(payment['actor'], payment['target'])
                     writeOutput(median(g.getVerticesDegrees()), wf)
@@ -82,4 +87,4 @@ def process(inputFile, outputFile):
                     writeOutput(median(g.getVerticesDegrees()), wf)
 
 if __name__ == '__main__':
-    process('venmo_input/venmo-trans.txt', 'venmo_output/output.txt')
+    processPayments('venmo_input/venmo-trans.txt', 'venmo_output/output.txt')
