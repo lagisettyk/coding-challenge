@@ -35,7 +35,7 @@ def writeOutput(data, f):
     f.write(str(data) + "\n")
 
 
-def process():
+def process(inputFile, outputFile):
     '''
     Method for processing payment records with moving window of 1 minute.
     simulates real time straming by reading records one by one using python
@@ -51,8 +51,8 @@ def process():
     max_ts = dateutil.parser.parse('1970-01-01T23:23:12Z')
 
     ### Process payment records....
-    with open('venmo_output/output.txt','w') as wf:
-        with open('venmo_input/venmo-trans.txt', 'r+') as f:
+    with open(outputFile,'w') as wf:
+        with open(inputFile, 'r+') as f:
 
             for data in f:
                 payment = json.loads(data)
@@ -82,4 +82,4 @@ def process():
                     writeOutput(median(g.getVerticesDegrees()), wf)
 
 if __name__ == '__main__':
-    process()
+    process('venmo_input/venmo-trans.txt', 'venmo_output/output.txt')
