@@ -63,28 +63,34 @@ def processPayments(inputFile, outputFile):
     ### Process payment records....
     with open(outputFile,'w') as wf:
         with open(inputFile, 'r+') as f:
-
             for data in f:
-                payment = json.loads(data)
-                ts = dateutil.parser.parse(payment['created_time'])
-                ### Keep track of current max processing record
-                if ts > max_ts:
-                    max_ts = ts
+                try:
+                    payment = json.loads(data)
+                    ### Check cleanness of data record
+                    if ( len(payment['created_time']) != 0 and len(payment['actor']) != 0 \
+                        and len(payment['target']) != 0 ):
 
-                ### Update Graph based on latest payment record
-                if ts >= (max_ts - timedelta(seconds=59)):
-                    activeRecords.append((payment['actor'],payment['target'],ts))
+                        ts = dateutil.parser.parse(payment['created_time'])
+                        ### Keep track of current max processing record
+                        if ts > max_ts:
+                            max_ts = ts
 
-                    ### Remove edges based on expiry of 1 minute windows
-                    activeRecords = invalidateEdges(g, activeRecords, max_ts)
+                        ### Update Graph based on latest payment record
+                        if ts >= (max_ts - timedelta(seconds=59)):
+                            activeRecords.append((payment['actor'],payment['target'],ts))
 
-                    ### Update latest payment record to graph
-                    g.addVertex(payment['actor'])
-                    g.addEdge(payment['actor'], payment['target'])
-                    writeOutput(median(g.getVerticesDegrees()), wf)
-                else:
-                    ### Write out median even in cases of out of order record
-                    writeOutput(median(g.getVerticesDegrees()), wf)
+                            ### Remove edges based on expiry of 1 minute windows
+                            activeRecords = invalidateEdges(g, activeRecords, max_ts)
+
+                            ### Update latest payment record to graph
+                            g.addVertex(payment['actor'])
+                            g.addEdge(payment['actor'], payment['target'])
+                            writeOutput(median(g.getVerticesDegrees()), wf)
+                        else:
+                            ### Write out median even in cases of out of order record
+                            writeOutput(median(g.getVerticesDegrees()), wf)
+                except:
+                     pass ### data cases to handle json input format is not good
 
 if __name__ == '__main__':
     processPayments('venmo_input/venmo-trans.txt', 'venmo_output/output.txt')
